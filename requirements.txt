@@ -10,7 +10,7 @@ passlib==1.7.4
 kaleido>=0.2.1
 
 # Database + utilities
-sqlite3-binary # SQLite is built-in on most platforms
+# sqlite3-binary # SQLite is built-in on most platforms
 
 # Optional: better handling for datetimes (not required but recommended)
 python-dateutil>=2.8.2
