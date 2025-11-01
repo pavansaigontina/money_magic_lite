@@ -87,7 +87,7 @@ def show_transactions_view(user):
         edited = st.data_editor(
             tx_df,
             num_rows="dynamic",
-            width=True,
+            use_container_width=True,
             column_config={
                 "Date": st.column_config.DateColumn("Date", format="YYYY-MM-DD"),
                 "Account": st.column_config.Column("Account", disabled=True),
@@ -193,7 +193,7 @@ def show_transactions_view(user):
             debit_df[
                 ["Account", "Type", "Opening Balance", "Total Incoming (Payments)", "Total Spent", "Remaining Balance"]
             ],
-            width=True,
+            use_container_width=True,
         )
     else:
         st.info("No debit accounts configured for this month.")
@@ -211,7 +211,7 @@ def show_transactions_view(user):
             credit_df[
                 ["Account", "Type", "Opening Balance", "Total Incoming (Payments)", "Total Spent", "Remaining Balance"]
             ],
-            width=True,
+            use_container_width=True,
         )
     else:
         st.info("No credit accounts configured for this month.")
@@ -247,7 +247,7 @@ def show_transactions_view(user):
             "Remaining Balance": total_credit_remaining,
         },
     ])
-    st.dataframe(total_row, width=True)
+    st.dataframe(total_row, use_container_width=True)
 
     # --- Top-line balance display ---
     with top_balance_viewer:
@@ -342,7 +342,7 @@ def show_transactions_view(user):
             cat_sums = exp_df.groupby('Category')['Amount'].sum().reset_index()
             fig1 = px.pie(cat_sums, values='Amount', names='Category',
                           title=f'Expenses by Category ({selected_month})', hole=0.4)
-            st.plotly_chart(fig1, width=True)
+            st.plotly_chart(fig1, use_container_width=True)
 
         inc_total = tx_df[tx_df['Type'] == 'Income']['Amount'].sum() if 'Income' in tx_df['Type'].values else 0
         exp_total = tx_df[tx_df['Type'] == 'Expense']['Amount'].sum() if 'Expense' in tx_df['Type'].values else 0
@@ -350,12 +350,12 @@ def show_transactions_view(user):
         fig2 = px.bar(pd.DataFrame({'Type': ['Expense', 'Income'], 'Amount': [exp_total, inc_total]}),
                       x='Type', y='Amount', text='Amount',
                       title=f'Income vs Expense ({selected_month})')
-        st.plotly_chart(fig2, width=True)
+        st.plotly_chart(fig2, use_container_width=True)
 
         if not summary_df.empty and 'Remaining' in summary_df.columns:
             fig3 = px.bar(summary_df, x='Account', y='Remaining', color='Type',
                           title=f'Account balances ({selected_month})', barmode='group')
-            st.plotly_chart(fig3, width=True)
+            st.plotly_chart(fig3, use_container_width=True)
     else:
         st.info("No transactions to chart.")
 
