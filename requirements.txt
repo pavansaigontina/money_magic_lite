@@ -1,0 +1,16 @@
+# Core app
+streamlit>=1.31.0
+pandas>=2.2.0
+plotly>=5.18.0
+
+# Password encryption
+passlib==1.7.4
+
+# Exporting charts as PNG
+kaleido>=0.2.1
+
+# Database + utilities
+sqlite3-binary; sys_platform == "linux"  # SQLite is built-in on most platforms
+
+# Optional: better handling for datetimes (not required but recommended)
+python-dateutil>=2.8.2
