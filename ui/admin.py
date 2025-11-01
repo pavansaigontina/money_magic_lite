@@ -19,4 +19,4 @@ def admin_dashboard_button(user):
                         "FROM users ORDER BY created_at DESC LIMIT 10", fetchall=True)
                     df = pd.DataFrame(recent) if recent else pd.DataFrame(
                         columns=["username","display_name","email","is_admin","created_at"])
-                    st.dataframe(df, use_container_width=True)
+                    st.dataframe(df, width=True)
