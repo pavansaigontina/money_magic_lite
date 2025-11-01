@@ -22,19 +22,30 @@ def init_db():
         is_admin INTEGER DEFAULT 0,
         created_at TEXT
     );
+
+    -- 🧾 Accounts table: user-specific
     CREATE TABLE IF NOT EXISTS accounts (
         id INTEGER PRIMARY KEY,
-        name TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
         type TEXT NOT NULL,
-        notes TEXT
+        notes TEXT,
+        user_id INTEGER NOT NULL,
+        UNIQUE(name, user_id),
+        FOREIGN KEY(user_id) REFERENCES users(id)
     );
+
+    -- 💰 Balances table: user-specific (linked by account and user)
     CREATE TABLE IF NOT EXISTS balances (
         id INTEGER PRIMARY KEY,
         month TEXT NOT NULL,
         account_id INTEGER NOT NULL,
         opening REAL DEFAULT 0,
-        FOREIGN KEY(account_id) REFERENCES accounts(id)
+        user_id INTEGER NOT NULL,
+        FOREIGN KEY(account_id) REFERENCES accounts(id),
+        FOREIGN KEY(user_id) REFERENCES users(id)
     );
+
+    -- 📜 Transactions table: user-specific (linked to account + user)
     CREATE TABLE IF NOT EXISTS transactions (
         id INTEGER PRIMARY KEY,
         tx_uuid TEXT UNIQUE NOT NULL,
@@ -44,7 +55,7 @@ def init_db():
         description TEXT,
         type TEXT CHECK(type IN ('Expense','Income')) NOT NULL DEFAULT 'Expense',
         amount REAL NOT NULL DEFAULT 0,
-        user_id INTEGER,
+        user_id INTEGER NOT NULL,
         created_at TEXT,
         FOREIGN KEY(account_id) REFERENCES accounts(id),
         FOREIGN KEY(user_id) REFERENCES users(id)
@@ -63,10 +74,8 @@ def query(query, params=(), commit=False, fetchone=False, fetchall=False):
         result = dict(row) if row else None
     if fetchall:
         rows = cur.fetchall()
-        # convert to list of dicts so pandas has column names
         result = [dict(r) for r in rows] if rows else []
     if commit:
         conn.commit()
     conn.close()
     return result
-

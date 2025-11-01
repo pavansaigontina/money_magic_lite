@@ -13,7 +13,7 @@ import plotly.io as pio
 
 def show_transactions_view(user):
     st.header("📜 Transactions")
-    accounts = get_accounts()
+    accounts = get_accounts(user["id"], user.get("is_admin", 0))
     account_names = [a['name'] for a in accounts]
 
     # Add Transaction
@@ -76,7 +76,10 @@ def show_transactions_view(user):
         end_date=max_date,
         account_ids=account_ids,
         types=types,
+        user_id=user["id"],
+        is_admin=bool(user.get("is_admin")),
     )
+
     st.write(f"Showing {len(tx_df)} transactions")
 
     if not tx_df.empty:
@@ -153,7 +156,8 @@ def show_transactions_view(user):
         for a in accounts:
             acc = a["name"]
             acc_type = a["type"]
-            opening = float(get_opening(selected_month, a["id"]) or 0.0)
+            # opening = float(get_opening(selected_month, a["id"]) or 0.0)
+            opening = float(get_opening(selected_month, a["id"], user["id"], user.get("is_admin", 0)))
             acc_data = tx_df[tx_df["Account"] == acc]
 
             # Compute totals
@@ -181,135 +185,136 @@ def show_transactions_view(user):
     # Totals
     total_opening = debit_opening - credit_opening
     total_remaining = total_opening + total_income_summary - total_spent_summary
+    try:
+        summary_df = pd.DataFrame(summary_rows)
+        debit_df = summary_df[summary_df["Type"] == "Debit"]
+        credit_df = summary_df[summary_df["Type"] == "Credit"]
 
-    summary_df = pd.DataFrame(summary_rows)
-    debit_df = summary_df[summary_df["Type"] == "Debit"]
-    credit_df = summary_df[summary_df["Type"] == "Credit"]
+        # --- Debit section ---
+        st.markdown("#### 🏦 Debit Accounts")
+        if not debit_df.empty:
+            st.dataframe(
+                debit_df[
+                    ["Account", "Type", "Opening Balance", "Total Incoming (Payments)", "Total Spent", "Remaining Balance"]
+                ],
+                use_container_width=True,
+            )
+        else:
+            st.info("No debit accounts configured for this month.")
 
-    # --- Debit section ---
-    st.markdown("#### 🏦 Debit Accounts")
-    if not debit_df.empty:
-        st.dataframe(
-            debit_df[
-                ["Account", "Type", "Opening Balance", "Total Incoming (Payments)", "Total Spent", "Remaining Balance"]
-            ],
-            use_container_width=True,
-        )
-    else:
-        st.info("No debit accounts configured for this month.")
+        total_debit_opening = float(debit_df["Opening Balance"].sum()) if not debit_df.empty else 0.0
+        total_debit_remaining = float(debit_df["Remaining Balance"].sum()) if not debit_df.empty else 0.0
+        total_debit_spent = float(debit_df["Total Spent"].sum()) if not debit_df.empty else 0.0
+        total_debit_incoming = float(debit_df["Total Incoming (Payments)"].sum()) if not debit_df.empty else 0.0
+        st.write(f"**Total Remaining Balance (Debit accounts):** ₹{total_debit_remaining:,.2f}")
 
-    total_debit_opening = float(debit_df["Opening Balance"].sum()) if not debit_df.empty else 0.0
-    total_debit_remaining = float(debit_df["Remaining Balance"].sum()) if not debit_df.empty else 0.0
-    total_debit_spent = float(debit_df["Total Spent"].sum()) if not debit_df.empty else 0.0
-    total_debit_incoming = float(debit_df["Total Incoming (Payments)"].sum()) if not debit_df.empty else 0.0
-    st.write(f"**Total Remaining Balance (Debit accounts):** ₹{total_debit_remaining:,.2f}")
+        # --- Credit section ---
+        st.markdown("#### 💳 Credit Cards")
+        if not credit_df.empty:
+            st.dataframe(
+                credit_df[
+                    ["Account", "Type", "Opening Balance", "Total Incoming (Payments)", "Total Spent", "Remaining Balance"]
+                ],
+                use_container_width=True,
+            )
+        else:
+            st.info("No credit accounts configured for this month.")
 
-    # --- Credit section ---
-    st.markdown("#### 💳 Credit Cards")
-    if not credit_df.empty:
-        st.dataframe(
-            credit_df[
-                ["Account", "Type", "Opening Balance", "Total Incoming (Payments)", "Total Spent", "Remaining Balance"]
-            ],
-            use_container_width=True,
-        )
-    else:
-        st.info("No credit accounts configured for this month.")
+        total_credit_opening = float(credit_df["Opening Balance"].sum()) if not credit_df.empty else 0.0
+        total_credit_remaining = float(credit_df["Remaining Balance"].sum()) if not credit_df.empty else 0.0
+        total_credit_spent = float(credit_df["Total Spent"].sum()) if not credit_df.empty else 0.0
+        total_credit_incoming = float(credit_df["Total Incoming (Payments)"].sum()) if not credit_df.empty else 0.0
+        st.write(f"**Total Spent (Credit accounts):** ₹{total_credit_spent:,.2f}")
 
-    total_credit_opening = float(credit_df["Opening Balance"].sum()) if not credit_df.empty else 0.0
-    total_credit_remaining = float(credit_df["Remaining Balance"].sum()) if not credit_df.empty else 0.0
-    total_credit_spent = float(credit_df["Total Spent"].sum()) if not credit_df.empty else 0.0
-    total_credit_incoming = float(credit_df["Total Incoming (Payments)"].sum()) if not credit_df.empty else 0.0
-    st.write(f"**Total Spent (Credit accounts):** ₹{total_credit_spent:,.2f}")
+        # --- Overall Totals ---
+        st.markdown(f"#### 📊 Total (All Accounts) for {selected_month}")
+        total_row = pd.DataFrame([
+            {
+                "Account": "Total (All Accounts)",
+                "Opening Balance": total_opening,
+                "Total Spent": total_spent_summary,
+                "Total Incoming (Payments)": total_income_summary,
+                "Remaining Balance": total_remaining,
+            },
+            {
+                "Account": "Debit Summary",
+                "Opening Balance": total_debit_opening,
+                "Total Spent": total_debit_spent,
+                "Total Incoming (Payments)": total_debit_incoming,
+                "Remaining Balance": total_debit_remaining,
+            },
+            {
+                "Account": "Credit Summary",
+                "Opening Balance": total_credit_opening,
+                "Total Spent": total_credit_spent,
+                "Total Incoming (Payments)": total_credit_incoming,
+                "Remaining Balance": total_credit_remaining,
+            },
+        ])
+        st.dataframe(total_row, use_container_width=True)
 
-    # --- Overall Totals ---
-    st.markdown(f"#### 📊 Total (All Accounts) for {selected_month}")
-    total_row = pd.DataFrame([
-        {
-            "Account": "Total (All Accounts)",
-            "Opening Balance": total_opening,
-            "Total Spent": total_spent_summary,
-            "Total Incoming (Payments)": total_income_summary,
-            "Remaining Balance": total_remaining,
-        },
-        {
-            "Account": "Debit Summary",
-            "Opening Balance": total_debit_opening,
-            "Total Spent": total_debit_spent,
-            "Total Incoming (Payments)": total_debit_incoming,
-            "Remaining Balance": total_debit_remaining,
-        },
-        {
-            "Account": "Credit Summary",
-            "Opening Balance": total_credit_opening,
-            "Total Spent": total_credit_spent,
-            "Total Incoming (Payments)": total_credit_incoming,
-            "Remaining Balance": total_credit_remaining,
-        },
-    ])
-    st.dataframe(total_row, use_container_width=True)
-
-    # --- Top-line balance display ---
-    with top_balance_viewer:
-        st.write(f"💰 Available Balance ({selected_month}): :green[₹{total_remaining:,.2f}]")
-
+        # --- Top-line balance display ---
+        with top_balance_viewer:
+            st.write(f"💰 Available Balance ({selected_month}): :green[₹{total_remaining:,.2f}]")
+    except Exception as e:
+        st.info("Please Add Transactions")
     
     # 🧩 2. ALL-MONTHS TOTAL BALANCE METRICS
-    st.markdown("---")
-    st.subheader("📅 Cumulative Balance (All Months)")
+    # st.markdown("---")
+    # st.subheader("📅 Cumulative Balance (All Months)")
 
-    try:
-        # fetch all data directly from DB
-        all_tx_rows = query("""
-            SELECT t.date as Date, a.name as Account, a.type as Type,
-                t.category as Category, t.description as Description,
-                t.type as TxType, t.amount as Amount
-            FROM transactions t
-            LEFT JOIN accounts a ON t.account_id = a.id
-        """, fetchall=True)
-        all_df = pd.DataFrame(all_tx_rows) if all_tx_rows else pd.DataFrame(
-            columns=["Date","Account","Type","Category","Description","TxType","Amount"]
-        )
+    # try:
+    #     # fetch all data directly from DB
+    #     all_tx_rows = query("""
+    #         SELECT t.date as Date, a.name as Account, a.type as Type,
+    #             t.category as Category, t.description as Description,
+    #             t.type as TxType, t.amount as Amount
+    #         FROM transactions t
+    #         LEFT JOIN accounts a ON t.account_id = a.id
+    #     """, fetchall=True)
+    #     all_df = pd.DataFrame(all_tx_rows) if all_tx_rows else pd.DataFrame(
+    #         columns=["Date","Account","Type","Category","Description","TxType","Amount"]
+    #     )
 
-        all_balances_rows = query("""
-            SELECT b.month as Month, a.name as Account, a.type as Type, b.opening as Opening
-            FROM balances b
-            LEFT JOIN accounts a ON b.account_id = a.id
-        """, fetchall=True)
-        all_balances = pd.DataFrame(all_balances_rows) if all_balances_rows else pd.DataFrame(
-            columns=["Month","Account","Type","Opening"]
-        )
+    #     all_balances_rows = query("""
+    #         SELECT b.month as Month, a.name as Account, a.type as Type, b.opening as Opening
+    #         FROM balances b
+    #         LEFT JOIN accounts a ON b.account_id = a.id
+    #     """, fetchall=True)
+    #     all_balances = pd.DataFrame(all_balances_rows) if all_balances_rows else pd.DataFrame(
+    #         columns=["Month","Account","Type","Opening"]
+    #     )
 
-        total_rows = []
-        for _, row in all_balances.iterrows():
-            acc = row["Account"]
-            acc_type = row["Type"]
-            opening = float(row.get("Opening", 0.0))
-            acc_data = all_df[all_df["Account"] == acc]
-            income = float(acc_data[acc_data["TxType"] == "Income"]["Amount"].sum()) if not acc_data.empty else 0.0
-            expense = float(acc_data[acc_data["TxType"] == "Expense"]["Amount"].sum()) if not acc_data.empty else 0.0
-            remaining = (opening + income - expense) if acc_type == "Debit" else (opening + expense - income)
-            total_rows.append({"Account": acc, "Type": acc_type, "Remaining": remaining})
+    #     total_rows = []
+    #     for _, row in all_balances.iterrows():
+    #         acc = row["Account"]
+    #         acc_type = row["Type"]
+    #         opening = float(row.get("Opening", 0.0))
+    #         acc_data = all_df[all_df["Account"] == acc]
+    #         income = float(acc_data[acc_data["TxType"] == "Income"]["Amount"].sum()) if not acc_data.empty else 0.0
+    #         expense = float(acc_data[acc_data["TxType"] == "Expense"]["Amount"].sum()) if not acc_data.empty else 0.0
+    #         remaining = (opening + income - expense) if acc_type == "Debit" else (opening + expense - income)
+    #         total_rows.append({"Account": acc, "Type": acc_type, "Remaining": remaining})
 
-        total_df = pd.DataFrame(total_rows)
-        total_debit = total_df[total_df["Type"] == "Debit"]["Remaining"].sum() if not total_df.empty else 0.0
-        total_credit = total_df[total_df["Type"] == "Credit"]["Remaining"].sum() if not total_df.empty else 0.0
-        total_overall = total_debit - total_credit
+    #     total_df = pd.DataFrame(total_rows)
+    #     total_debit = total_df[total_df["Type"] == "Debit"]["Remaining"].sum() if not total_df.empty else 0.0
+    #     total_credit = total_df[total_df["Type"] == "Credit"]["Remaining"].sum() if not total_df.empty else 0.0
+    #     total_overall = total_debit - total_credit
 
-        colA, colB, colC = st.columns(3)
-        with colA:
-            st.metric("💼 Total Debit Balance", f"₹{total_debit:,.2f}")
-        with colB:
-            st.metric("💳 Total Credit Outstanding", f"₹{total_credit:,.2f}")
-        with colC:
-            st.metric(
-                "🧾 Net Worth (All Months)",
-                f"₹{total_overall:,.2f}",
-                delta=total_overall,
-                delta_color="normal" if total_overall >= 0 else "inverse",
-            )
-    except Exception as e:
-        st.warning(f"⚠️ Unable to calculate total balance across all months: {e}")
+    #     colA, colB, colC = st.columns(3)
+    #     with colA:
+    #         st.metric("💼 Total Debit Balance", f"₹{total_debit:,.2f}")
+    #     with colB:
+    #         st.metric("💳 Total Credit Outstanding", f"₹{total_credit:,.2f}")
+    #     with colC:
+    #         st.metric(
+    #             "🧾 Net Worth (All Months)",
+    #             f"₹{total_overall:,.2f}",
+    #             delta=total_overall,
+    #             delta_color="normal" if total_overall >= 0 else "inverse",
+    #         )
+    # except Exception as e:
+    #     st.warning(f"⚠️ Unable to calculate total balance across all months: {e}")
 
     # 🧩 3. MONTHLY METRICS
     st.markdown("---")

@@ -3,7 +3,7 @@ from core.accounts import get_accounts, add_account, update_account, delete_acco
 
 def show_accounts_view(user):
     st.header("🏦 Accounts")
-    accounts = get_accounts()
+    accounts = get_accounts(user["id"], user.get("is_admin", 0))
 
     with st.expander("Add account"):
         with st.form("add_account_form"):
@@ -15,34 +15,33 @@ def show_accounts_view(user):
                     st.error("Name required")
                 else:
                     try:
-                        add_account(name.strip(), atype, notes.strip())
+                        add_account(name.strip(), atype, notes.strip(), user["id"])
                         st.success("Account added")
                         st.rerun()
                     except Exception as e:
                         st.error(str(e))
 
     st.markdown("**Existing accounts**")
-    with st.expander("See All Accounts"):
-        if accounts:
-            for a in accounts:
-                with st.expander(f"{a['name']} ({a['type']})"):
-                    st.write(a.get('notes',''))
-                    c1,c2,c3 = st.columns([2,1,1])
-                    with c1:
-                        new_name = st.text_input(f"name_{a['id']}", value=a['name'])
-                    with c2:
-                        new_type = st.selectbox(f"type_{a['id']}", ["Debit","Credit"], index=0 if a['type']=="Debit" else 1)
-                    with c3:
-                        if st.button("Save", key=f"save_acc_{a['id']}"):
-                            update_account(a['id'], name=new_name.strip(), atype=new_type)
-                            st.success("Saved")
-                            st.rerun()
-                    if st.button("Delete account", key=f"del_acc_{a['id']}"):
-                        try:
-                            delete_account(a['id'])
-                            st.success("Deleted")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(str(e))
-        else:
-            st.info("No accounts. Add one above.")
+    if accounts:
+        for a in accounts:
+            with st.expander(f"{a['name']} ({a['type']})"):
+                st.write(a.get('notes',''))
+                c1,c2,c3 = st.columns([2,1,1])
+                with c1:
+                    new_name = st.text_input(f"name_{a['id']}", value=a['name'])
+                with c2:
+                    new_type = st.selectbox(f"type_{a['id']}", ["Debit","Credit"], index=0 if a['type']=="Debit" else 1)
+                with c3:
+                    if st.button("Save", key=f"save_acc_{a['id']}"):
+                        update_account(a['id'], name=new_name.strip(), atype=new_type)
+                        st.success("Saved")
+                        st.rerun()
+                if st.button("Delete account", key=f"del_acc_{a['id']}"):
+                    try:
+                        delete_account(a['id'])
+                        st.success("Deleted")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(str(e))
+    else:
+        st.info("No accounts. Add one above.")
